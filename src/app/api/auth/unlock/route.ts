@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
-import { findLocalUser } from '@/lib/local-database';
-import { normalizeKey, clearLockout, isLocked } from '@/lib/lockout';
-import { getMasterPassword } from '@/lib/master-password';
+import {
+  findProfileByIdentifier,
+  getLockState,
+  setMasterCode,
+  unlockAccount,
+  verifyMasterCode,
+} from '@/lib/supabase-db';
 
 export const runtime = 'nodejs';
-
-function getAdminUnlockCode(): string {
-  return getMasterPassword();
-}
-
-function isAdminRole(role: string | null | undefined): boolean {
-  return role === 'Head Engineer';
-}
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   const { username, masterCode } = await request.json();
@@ -20,29 +17,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Username is required.' }, { status: 400 });
   }
 
-  const key = normalizeKey(identifier);
+  try {
+    const profile = await findProfileByIdentifier(identifier);
+    const isAdmin = profile?.roleKey === 'head_engineer';
 
-  const role = findLocalUser(identifier)?.role ?? null;
+    if (isAdmin) {
+      const providedMaster = String(masterCode ?? '').trim();
+      if (!(await verifyMasterCode(providedMaster))) {
+        return NextResponse.json(
+          { message: 'Invalid master unlock code.', requiresMaster: true },
+          { status: 401 }
+        );
+      }
+    }
 
-  const isAdmin = isAdminRole(role);
-  const providedMaster = String(masterCode ?? '').trim();
-  const adminUnlockCode = getAdminUnlockCode();
-  if (isAdmin && providedMaster !== adminUnlockCode) {
-    return NextResponse.json(
-      { message: 'Invalid master unlock code.', requiresMaster: true },
-      { status: 401 }
-    );
+    const wasLocked = (await getLockState(identifier)).locked;
+    await unlockAccount(identifier);
+
+    return NextResponse.json({
+      success: true,
+      unlocked: true,
+      wasLocked,
+      message: wasLocked ? 'Account unlocked.' : 'Account is not currently locked.',
+    });
+  } catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 500 });
   }
-
-  const wasLocked = isLocked(key).locked;
-  clearLockout(key);
-
-  return NextResponse.json({
-    success: true,
-    unlocked: true,
-    wasLocked,
-    message: wasLocked ? 'Account unlocked.' : 'Account is not currently locked.',
-  });
 }
 
 export async function PATCH(request: Request) {
@@ -53,25 +53,21 @@ export async function PATCH(request: Request) {
   if (!currentValue || !nextValue) {
     return NextResponse.json({ message: 'Current and new password are required.' }, { status: 400 });
   }
-
-  const currentAdminUnlockCode = getAdminUnlockCode();
-  if (currentValue !== currentAdminUnlockCode) {
-    return NextResponse.json({ message: 'Current master password is incorrect.' }, { status: 401 });
+  if (nextValue.length < 8) {
+    return NextResponse.json(
+      { message: 'New password must be at least 8 characters long.' },
+      { status: 400 }
+    );
   }
 
-  if (nextValue.length < 6) {
-    return NextResponse.json({ message: 'New password must be at least 6 characters long.' }, { status: 400 });
+  try {
+    const result = await setMasterCode(nextValue, currentValue);
+    if (!result.ok) {
+      const status = result.message?.includes('incorrect') ? 401 : 400;
+      return NextResponse.json({ message: result.message }, { status });
+    }
+    return NextResponse.json({ success: true, message: 'Master password updated successfully.' });
+  } catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 500 });
   }
-
-  const { setMasterPassword } = await import('@/lib/master-password');
-  const saved = setMasterPassword(nextValue);
-
-  if (!saved) {
-    return NextResponse.json({ message: 'Unable to save the new master password.' }, { status: 500 });
-  }
-
-  return NextResponse.json({
-    success: true,
-    message: 'Master password updated successfully.',
-  });
 }
