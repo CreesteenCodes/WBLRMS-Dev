@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
-import { listInspections, listRoads, saveInspection, saveRoad } from '@/lib/local-database';
+import { getRoad, listInspections, saveInspection } from '@/lib/supabase-db';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return NextResponse.json({ data: listInspections() });
+  try {
+    return NextResponse.json({ data: await listInspections() });
+  } catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -19,16 +24,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'A valid road ID is required.' }, { status: 400 });
   }
 
-  const road = listRoads().find((item) => item.id === payload.localRoadId);
-  if (!road) return NextResponse.json({ message: 'Road not found.' }, { status: 404 });
+  try {
+    const road = await getRoad(payload.localRoadId);
+    if (!road) return NextResponse.json({ message: 'Road not found.' }, { status: 404 });
 
-  const inspection = { ...payload, id: crypto.randomUUID() };
-  saveInspection(inspection, road.id);
-
-  const condition =
-    Number(inspection.conditionRating) >= 8 ? 'Good' :
-    Number(inspection.conditionRating) >= 5 ? 'Fair' : 'Poor';
-  saveRoad({ ...road, condition, lastInspection: inspection.date });
-
-  return NextResponse.json({ success: true, data: inspection });
+    // The database trigger sync_road_after_inspection updates the road's
+    // condition and last inspection date automatically after this insert.
+    const inspection = await saveInspection({ ...payload, id: crypto.randomUUID() }, road.id);
+    return NextResponse.json({ success: true, data: inspection });
+  } catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 500 });
+  }
 }

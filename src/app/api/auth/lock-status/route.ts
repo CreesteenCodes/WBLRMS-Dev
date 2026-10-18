@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { listLockedKeys, isLocked } from '@/lib/lockout';
+import { listLockedIdentifiers } from '@/lib/supabase-db';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const keys = listLockedKeys();
-  const locked: Record<string, number> = {};
-  keys.forEach((key) => {
-    const { retryAfterSeconds } = isLocked(key);
-    locked[key] = retryAfterSeconds;
-  });
-  return NextResponse.json({ locked });
+  try {
+    return NextResponse.json({ locked: await listLockedIdentifiers() });
+  } catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 500 });
+  }
 }

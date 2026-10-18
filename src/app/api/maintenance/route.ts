@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import {
-  listMaintenanceRecords,
-  listRoads,
-  saveMaintenanceRecord,
-} from '@/lib/local-database';
+import { getRoad, listMaintenanceRecords, saveMaintenanceRecord } from '@/lib/supabase-db';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return NextResponse.json({ data: listMaintenanceRecords() });
+  try {
+    return NextResponse.json({ data: await listMaintenanceRecords() });
+  } catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -23,12 +24,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'A valid road ID is required.' }, { status: 400 });
   }
 
-  const road = listRoads().find((item) => item.id === payload.localRoadId);
-  if (!road) return NextResponse.json({ message: 'Road not found.' }, { status: 404 });
+  try {
+    const road = await getRoad(payload.localRoadId);
+    if (!road) return NextResponse.json({ message: 'Road not found.' }, { status: 404 });
 
-  const record = { ...payload, id: crypto.randomUUID() };
-  saveMaintenanceRecord(record, road.id);
-  return NextResponse.json({ success: true, data: record });
+    const record = await saveMaintenanceRecord({ ...payload, id: crypto.randomUUID() }, road.id);
+    return NextResponse.json({ success: true, data: record });
+  } catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -41,10 +45,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: 'A valid record ID and status are required.' }, { status: 400 });
   }
 
-  const record = listMaintenanceRecords().find((item) => item.id === payload.id);
-  if (!record) return NextResponse.json({ message: 'Maintenance record not found.' }, { status: 404 });
+  try {
+    const record = (await listMaintenanceRecords()).find((item) => item.id === payload.id);
+    if (!record) return NextResponse.json({ message: 'Maintenance record not found.' }, { status: 404 });
 
-  const updated = { ...record, status: payload.status, completedDate: payload.completedDate };
-  saveMaintenanceRecord(updated, String(record.localRoadId));
-  return NextResponse.json({ success: true, data: updated });
+    const updated = { ...record, status: payload.status, completedDate: payload.completedDate };
+    await saveMaintenanceRecord(updated, String(record.localRoadId));
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error) {
+    return NextResponse.json({ message: (error as Error).message }, { status: 500 });
+  }
 }
