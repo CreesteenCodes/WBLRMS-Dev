@@ -4,17 +4,18 @@
 > Project: **WBLRMS** (`jowcyoziuqzoezxboffx`) · Region: ap-south-1 · Postgres 17 · Status: ACTIVE_HEALTHY
 > Other projects in the account (both INACTIVE/paused): "mendozagabii's Project", "ordering-system".
 
+> **Status note:** This is a snapshot of the database review. The finding below that the repo was not yet connected describes the code at the time of that review. The current repo now includes a Supabase-backed data layer; see [Project History](PROJECT-HISTORY.md) and `src/lib/supabase-db.ts`.
+
 ## 1. Summary
 
-The Supabase database is a **complete, production-grade, fully normalized schema** for the
-WBLRMS system — far more advanced than the SQLite JSON-blob storage currently used by the
-repo code. It includes 17 tables, 13 enum types, 4 reporting views, 22 functions,
-34 triggers, Row Level Security on every table, Supabase Auth integration, and a private
-storage bucket.
+At the time of this scan, the Supabase database was a **complete, production-grade,
+relational schema** for WBLRMS, with 17 tables, 13 enum types, 4 reporting views, 22
+functions, 34 triggers, Row Level Security on every table, Supabase Auth integration,
+and a private storage bucket.
 
-**Key finding: the repo code is NOT yet connected to this database.** The app still uses
-`better-sqlite3` locally, and `@supabase/supabase-js` is not in `package.json`. The schema
-appears to have been designed ahead of the code migration.
+**Finding at scan time:** the repository was not yet connected to this database and still
+used local SQLite storage. This was a point-in-time finding; the current repo now contains
+a Supabase-backed data layer, as noted above.
 
 ## 2. Tables (public schema)
 
@@ -85,9 +86,9 @@ appears to have been designed ahead of the code migration.
 - **Supabase Auth** in use: 4 users in `auth.users` matching `profiles` (admin/encoder/inspector/validator — same demo set as the repo)
 - **Storage:** 1 private bucket `wblrms-files` (matches `attachments.storage_path`)
 
-## 7. Gap analysis: repo code vs. this database
+## 7. Gap analysis at the time of the scan
 
-| Aspect | Repo (current code) | Supabase DB (ready & waiting) |
+| Aspect | Repo at scan time | Supabase DB |
 |---|---|---|
 | Storage engine | SQLite file, JSON blobs | Postgres 17, fully normalized |
 | Roads vs projects | One merged "LocalRoad" blob | Separate `roads` + `projects` + lookups |
@@ -105,9 +106,9 @@ appears to have been designed ahead of the code migration.
 - `activity_logs` already has 21 rows → the DB has been exercised (likely manual testing / seeding).
 - All domain tables are empty — no real data yet, safe to experiment.
 
-## 8. Recommended next step
+## 8. Recommendation from the scan
 
-Migrate the app from SQLite to this Supabase schema:
+At the time, the recommended next step was to migrate the app from SQLite to this Supabase schema. That connection is now present in the repository; this list is retained as part of the historical review:
 1. Add `@supabase/supabase-js`; create `src/lib/supabase.ts` (client) with env vars
 2. Replace `local-database.ts` CRUD with Supabase queries against the normalized tables
 3. Swap custom auth for Supabase Auth (the lockout/master-code RPCs already exist in the DB)
