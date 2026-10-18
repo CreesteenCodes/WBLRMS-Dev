@@ -45,4 +45,10 @@ Entry format: date · type (Added / Changed / Fixed / Removed / Experiment) · f
 - **Why:** SQLite files don't persist on Vercel's serverless filesystem; the Supabase schema was already built and waiting (see `docs/SUPABASE-DB-ANALYSIS.md`)
 - **Verified:** `next build` passes; all API routes compile as dynamic functions
 
+### Added — Preview deployment of the migration
+- **Where:** Vercel project `wblrms-dev`, deployment `dpl_D1r2LDAJzoev98tR7eWNz4sUZYq7` (target: preview, from branch `arena/f362ad88-wblrms-dev`, commit `47ef4cf`)
+- **Status:** READY (built in ~35 s, Supabase env vars included)
+- **Preview URL:** https://wblrms-dev-git-arena-f362ad88-wblrms-dev-gabii0805s-projects.vercel.app (requires logging in to Vercel — deployment protection is on for previews)
+- **Note:** production (`wblrms-dev.vercel.app`) still runs the old SQLite build; promote after testing the preview.
+
 <!-- New entries go below. Keep newest date sections at the top of the list above this line's section, or simply append — just stay consistent. -->
