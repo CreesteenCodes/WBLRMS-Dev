@@ -18,4 +18,9 @@ Entry format: date · type (Added / Changed / Fixed / Removed / Experiment) · f
 - **What:** Created this changelog to record every adjustment made after the fork, and a repo overview documenting the original structure as it existed at the baseline commit.
 - **Why:** To clearly distinguish my own additions/experiments from the original forked code.
 
+### Added — Supabase database scan & analysis
+- **Files:** `docs/SUPABASE-DB-ANALYSIS.md` (new)
+- **What:** Connected to the Supabase project "WBLRMS" and scanned the live database (read-only — no changes made to the DB). Documented all 17 tables, 13 enums, 4 views, 22 functions, 34 triggers, RLS policies, storage bucket, and the gap between the DB and the current repo code.
+- **Why:** To understand the existing cloud schema before migrating the app off SQLite.
+
 <!-- New entries go below. Keep newest date sections at the top of the list above this line's section, or simply append — just stay consistent. -->
